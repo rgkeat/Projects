@@ -1,0 +1,214 @@
+---
+title: "MLR"
+author: "Richard Gan"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+Source:
+Abalone Data Set
+Data comes from an original (non-machine-learning) study:
+Warwick J Nash, Tracy L Sellers, Simon R Talbot, Andrew J Cawthorn and Wes B Ford (1994)
+"The Population Biology of Abalone (_Haliotis_ species) in Tasmania. I. Blacklip Abalone (_H. rubra_) from the North Coast and Islands of Bass Strait",
+Sea Fisheries Division, Technical Report No. 48 (ISSN 1034-3288)
+
+Original Owners of Database:
+
+Marine Resources Division
+Marine Research Laboratories - Taroona
+
+Link: http://archive.ics.uci.edu/ml/datasets/Abalone
+
+==================================================================
+
+I. Defining and examining data
+
+```{r}
+library(pacman)
+
+pacman::p_load(tidyverse, psych, pastecs, olsrr, stargazer, ggfortify, caTools, car, quantmod, MASS, corrplot, performance)
+
+```
+
+
+```{r, import}
+df = read_csv("Abalone.csv", col_names = T)
+
+```
+
+
+```{r, examine data}
+view(df)
+str(df) 
+summary(df)
+GGally::ggpairs(df)
+
+```
+
+
+```{r, as.factor}
+#convert sex column from char to factor (3 levels or 2 dummy var)
+#needed to run pairs function
+df$sex = as.factor(df$sex)
+pairs(df)
+
+```
+
+
+II. Linear Model
+
+```{r, initial linear model}
+model <- lm(rings ~ sex + length + diameter + height + whole_weight + shucked_weight + viscera_weight + shell_weight, data = df)
+summary(model) #We can see on the summary that Length is not significant
+
+```
+
+
+```{r, regressed model1}
+model1 <- ols_step_backward_aic(model, details=TRUE)
+#backward_p, The Independent variable "length" is removed as we fail to reject the null hypothesis at 0.05 p-value based on our model
+
+model1 <- lm(rings ~ sex + diameter + height + whole_weight + shucked_weight + viscera_weight + shell_weight, data = df)
+plot(model1, which = 1:5) #Residuals vs Leverage is not linear 
+
+```
+
+
+```{r, final model2}
+model2 <- lm(rings ~ sex + diameter + height + whole_weight, data = df)
+summary(model2)
+plot(model2, which=1:5) #Residuals vs Leverage is linear, therefore we further removed 3 IV's namely: shucked_weight, viscera_weight, and shell_weight so that our model follows assumption of linearity 
+
+```
+
+
+III Diagnostics
+
+Assumptions:
+1) Linearity: The expected (mean) outcome is a linear function of the predictors. Also, the parameters must be linear. 
+2) Homoscedasticity: The residuals, conditional on X, have constant variance. 
+3) Independence: Errors do not covary after conditioning on X. 
+4) Normality: Errors follow a normal distribution.
+5) No multicollinearity: Independent variables cannot be predicted from each other.
+6) No outlier effects: The model represents the data well, and no observations disproportionately influence the model fit.
+7) No measurement error: Predictors are measured perfectly.
+8) No specification error: The statistical model matches the data generating process in its functional form and in which variables are included.
+
+
+```{r, Linearity}
+plot(model2, which=1) #This plot shows our model follows a linear path, shown in red line
+
+```
+
+
+```{r, dist of residual errors}
+plot(model2, which=2) #this plot shows our model does not follow a normal distribution as it passes 1 on the X axis it becomes exponential 
+
+#However, the central limit theorem tells us that with a sufficiently large enough sample size a normal distribution is expected. Here our sample size is 4000 observations
+
+qqPlot(model2, main="QQ Plot") #better diagram
+
+```
+
+
+
+```{r, multicollinearity}
+
+#usingVIF
+vif <- vif(model)
+barplot(vif, main = "VIF Values", horiz = TRUE, col = "steelblue")
+
+
+#using corrpolot
+dataset = df[3:8] #sex, length, and rings are not included
+
+corrplot(cor(dataset), method = "number")
+
+```
+
+
+```{r}
+model_performance(model2) #lower R2, but is linear
+
+```
+
+```{r}
+model_performance(model1) #higher R2 but is non linear
+#Although we have a higher R2 in model1 as compared to model2, we are unable to satisfy linearity assumption, therefore we are unable to proceed with this model
+
+```
+
+
+```{r, outliers}
+ols_plot_cooksd_bar(model2)
+ols_plot_cooksd_chart(model2)
+ols_plot_dfbetas(model2)
+ols_plot_dffits(model2)
+
+```
+
+
+
+```{r}
+#Here we can identify outliers that can skew our regression 
+outlierTest(model2)
+
+```
+
+
+```{r}
+#check normality
+check_normality(model2)
+plot(check_normality(model2))
+#Due to the Central Limit Theorem we can ignore as our observations are sufficiently large enough (4000 obs)
+
+```
+
+
+```{r}
+#Anova test
+anova(model1, model2)
+
+```
+
+
+```{r}
+car::ncvTest(model2)
+
+
+```
+
+
+```{r}
+
+plot(model2, which=1:6)
+
+```
+
+
+```{r}
+
+summary(model2)
+
+```
+
+
+
+IV Appendix
+
+```{r}
+
+(modcompare <- ols_step_all_possible(model))
+view(modcompare)
+
+
+```
+
+```{r}
+(modcompare1 <- ols_step_best_subset(model))
+plot(modcompare1)
+
+```
+
