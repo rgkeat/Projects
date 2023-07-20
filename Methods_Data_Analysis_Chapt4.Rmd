@@ -1,0 +1,84 @@
+---
+title: 'Assessing the Nexus of Debt and Inflation to Sovereign Risk: A Quantitative
+  Study on Fiscal Sustainability in the Philippines'
+author: "Richard Gan"
+date: "2023-07-20"
+output:
+  html_document: default
+  word_document: default
+---
+
+CSV Data Sources
+Debt to GDP: Trading Economics (Philippines Government Debt to GDP, 2022)
+Inflation rate: Worldbank (Databank World Development Indicators, 2022). 
+EMBI iShares: J.P. Morgan USD Emerging Markets Bond Index ETF (EMBI) (Yahoo Finance, 2022)
+
+---
+
+LaTeX 
+$$
+\begin{aligned}&y_ = \beta_0 + \beta x_{1} + \beta x_{2} + \epsilon
+\\&y=\text{EMBI}
+\\&x_1=\text{Debt to GDP}
+\\&x_2=\text{Inflation}
+\\&\beta_0=\text{y-intercept (constant term)}
+\\&\beta=\text{slope coefficients for each explanatory variable}
+\\&\epsilon=\text{the model's error term (also known as the residuals)}
+\end{aligned}
+$$
+```{r, packages}
+library(pacman)
+pacman::p_load(tidyverse, psych, pastecs, olsrr, stargazer, ggfortify, caTools, car, quantmod, MASS, corrplot, performance, ggstatsplot)
+```
+
+```{r, import CSV}
+df = read_csv("dataset_EMBI_Inflation_DebtToGDP.csv", col_names=T)
+df
+```
+
+```{r, initial MLR model}
+model = lm(EMBI ~ Debt_to_GDP + Inflation, data = df)
+summary(model)
+```
+
+```{r, regression model}
+ols_regress(model, premdetails = T)
+```
+
+```{r, stepwise regression}
+model <- lm(EMBI ~ ., data = df)
+ols_step_both_p(model)
+```
+```{r, all possible regression models}
+model <- lm(EMBI ~ ., data = df)
+ols_step_all_possible(model)
+summary(model)
+```
+
+```{r, regressed model, inflation}
+model1 = lm(EMBI ~ Inflation, data = df)
+summary(model1)
+
+```
+```{r, regressed model, debtToGDP}
+model1 = lm(EMBI ~ Debt_to_GDP, data = df)
+summary(model1)
+
+```
+
+```{r, correlation matrix}
+cor(df)
+```
+```{r}
+cor.plot(df)
+```
+
+```{r}
+
+ggscatterstats(df)
+
+```
+```{r}
+plot(model, which = 1:6)
+```
+
